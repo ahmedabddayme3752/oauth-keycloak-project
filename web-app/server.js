@@ -2,22 +2,24 @@ const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const OAuth2Strategy = require('passport-oauth2').Strategy;
-const { Issuer, Strategy: OpenIDConnectStrategy } = require('openid-client');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuration
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://localhost:8080';
-const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'oauth-demo';
-const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'web-app-client';
-const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || 'your-client-secret';
+// Configuration from environment variables
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL;
+const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM;
+const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID;
+const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET;
+const SESSION_SECRET = process.env.SESSION_SECRET;
 
 // Session configuration
 app.use(session({
-  secret: 'oauth-demo-secret',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false } // Set to true in production with HTTPS
@@ -30,34 +32,53 @@ app.use(passport.session());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Initialize OpenID Connect client
-let client;
+// Fix for openid-client compatibility
+app.use((req, res, next) => {
+  // Ensure req.url is properly set
+  if (!req.url) {
+    req.url = req.originalUrl || '/';
+  }
+  next();
+});
 
-async function initializeAuth() {
+// Initialize OAuth 2.0 authentication
+function initializeAuth() {
   try {
-    const keycloakIssuer = await Issuer.discover(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`);
-    console.log('Keycloak issuer discovered:', keycloakIssuer.metadata.issuer);
-
-    client = new keycloakIssuer.Client({
-      client_id: KEYCLOAK_CLIENT_ID,
-      client_secret: KEYCLOAK_CLIENT_SECRET,
-      redirect_uris: ['http://localhost:3000/auth/callback'],
-      response_types: ['code'],
-    });
-
-    // Configure Passport strategy
-    passport.use('oidc', new OpenIDConnectStrategy({
-      client: client,
-      params: {
-        scope: 'openid email profile'
+    // Configure Passport OAuth2 strategy for Keycloak
+    passport.use('keycloak', new OAuth2Strategy({
+      authorizationURL: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth`,
+      tokenURL: `http://keycloak:8080/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`,
+      clientID: KEYCLOAK_CLIENT_ID,
+      clientSecret: KEYCLOAK_CLIENT_SECRET,
+      callbackURL: 'http://localhost:3000/auth/callback',
+      scope: 'openid email profile'
+    }, async (accessToken, refreshToken, profile, done) => {
+      try {
+        // Get user info from Keycloak
+        const userInfoResponse = await fetch(`http://keycloak:8080/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        
+        if (!userInfoResponse.ok) {
+          throw new Error('Failed to fetch user info');
+        }
+        
+        const userInfo = await userInfoResponse.json();
+        console.log('✅ User authenticated successfully:', userInfo);
+        return done(null, userInfo);
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+        return done(error, null);
       }
-    }, (tokenset, userinfo, done) => {
-      console.log('User authenticated:', userinfo);
-      return done(null, userinfo);
     }));
 
     passport.serializeUser((user, done) => {
@@ -82,11 +103,13 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/login', passport.authenticate('oidc'));
+app.get('/login', passport.authenticate('keycloak'));
 
 app.get('/auth/callback', 
-  passport.authenticate('oidc', { failureRedirect: '/error' }),
+  passport.authenticate('keycloak', { failureRedirect: '/error' }),
   (req, res) => {
+    console.log('✅ Authentication successful, redirecting to dashboard');
+    console.log('User:', req.user);
     res.redirect('/dashboard');
   }
 );
@@ -136,15 +159,24 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Initialize authentication and start server
-initializeAuth().then(() => {
-  app.listen(PORT, () => {
-    console.log(`OAuth 2.0 Web Application running on port ${PORT}`);
-    console.log(`Keycloak URL: ${KEYCLOAK_URL}`);
-    console.log(`Realm: ${KEYCLOAK_REALM}`);
-    console.log(`Client ID: ${KEYCLOAK_CLIENT_ID}`);
-  });
-}).catch(error => {
-  console.error('Failed to start server:', error);
+// Validate required environment variables
+const requiredEnvVars = ['KEYCLOAK_URL', 'KEYCLOAK_REALM', 'KEYCLOAK_CLIENT_ID', 'KEYCLOAK_CLIENT_SECRET', 'SESSION_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:');
+  missingEnvVars.forEach(envVar => console.error(`   - ${envVar}`));
+  console.error('\nPlease check your .env file and ensure all required variables are set.');
   process.exit(1);
+}
+
+// Initialize authentication and start server
+initializeAuth();
+app.listen(PORT, () => {
+  console.log('🚀 OAuth 2.0 Web Application started successfully!');
+  console.log(`📡 Server running on port ${PORT}`);
+  console.log(`🔐 Keycloak URL: ${KEYCLOAK_URL}`);
+  console.log(`🏰 Realm: ${KEYCLOAK_REALM}`);
+  console.log(`🆔 Client ID: ${KEYCLOAK_CLIENT_ID}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
