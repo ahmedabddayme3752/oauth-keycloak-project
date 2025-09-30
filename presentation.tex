@@ -1,0 +1,487 @@
+\documentclass[aspectratio=169]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{hyperref}
+
+% Configuration des couleurs
+\definecolor{keycloakblue}{RGB}{0, 112, 210}
+\definecolor{oauthgreen}{RGB}{0, 150, 0}
+\definecolor{errorred}{RGB}{220, 20, 60}
+
+% Configuration du thème
+\usetheme{Madrid}
+\usecolortheme{default}
+
+% Configuration des listes
+\lstset{
+    language=JavaScript,
+    basicstyle=\tiny\ttfamily,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{gray!10},
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    frame=single,
+    tabsize=2,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+    escapeinside={\%*}{*)}
+}
+
+% Informations du document
+\title[OAuth 2.0 avec Keycloak]{Projet 2: Implémentation OAuth 2.0 dans une Application Web}
+\subtitle{Mise en place d'un serveur d'autorisation avec Keycloak}
+\author{Projet Sécurité}
+\institute{Université}
+\date{\today}
+
+\begin{document}
+
+% Page de titre
+\begin{frame}
+    \titlepage
+\end{frame}
+
+% Table des matières
+\begin{frame}
+    \frametitle{Plan de la Présentation}
+    \tableofcontents
+\end{frame}
+
+\section{Introduction à OAuth 2.0}
+
+\begin{frame}
+    \frametitle{Qu'est-ce qu'OAuth 2.0?}
+    \begin{block}{Définition}
+        OAuth 2.0 est un \textbf{framework d'autorisation} qui permet à une application d'obtenir un accès limité aux ressources d'un utilisateur sur un service HTTP.
+    \end{block}
+    
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \textbf{Problème résolu:}
+            \begin{itemize}
+                \item Éviter le partage de mots de passe
+                \item Contrôle granulaire des permissions
+                \item Révocabilité des accès
+                \item Sécurité renforcée
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \textbf{Avantages:}
+            \begin{itemize}
+                \item Standard industriel
+                \item Interopérabilité
+                \item Flexibilité
+                \item Sécurité éprouvée
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Acteurs OAuth 2.0}
+    \begin{center}
+        \begin{tikzpicture}[scale=0.8]
+            % Resource Owner
+            \node[draw, rectangle, fill=blue!20, minimum width=2cm, minimum height=1cm] (ro) at (0,3) {Resource Owner\\Utilisateur};
+            
+            % Client
+            \node[draw, rectangle, fill=green!20, minimum width=2cm, minimum height=1cm] (client) at (0,0) {Client\\Application Web};
+            
+            % Authorization Server
+            \node[draw, rectangle, fill=red!20, minimum width=2cm, minimum height=1cm] (auth) at (4,3) {Authorization Server\\Keycloak};
+            
+            % Resource Server
+            \node[draw, rectangle, fill=yellow!20, minimum width=2cm, minimum height=1cm] (resource) at (4,0) {Resource Server\\API Protégée};
+            
+            % Arrows
+            \draw[->, thick] (ro) -- (auth) node[midway, above] {1. Autorisation};
+            \draw[->, thick] (client) -- (auth) node[midway, right] {2. Demande token};
+            \draw[->, thick] (auth) -- (client) node[midway, right] {3. Token d'accès};
+            \draw[->, thick] (client) -- (resource) node[midway, below] {4. Accès ressource};
+        \end{tikzpicture}
+    \end{center}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Flux d'Autorisation OAuth 2.0}
+    \begin{enumerate}
+        \item \textbf{Redirection vers l'autorisation:} L'application redirige l'utilisateur vers le serveur d'autorisation
+        \item \textbf{Authentification:} L'utilisateur s'authentifie et autorise l'application
+        \item \textbf{Code d'autorisation:} Le serveur renvoie un code d'autorisation
+        \item \textbf{Échange de token:} L'application échange le code contre un token d'accès
+        \item \textbf{Accès aux ressources:} L'application utilise le token pour accéder aux ressources
+    \end{enumerate}
+    
+    \begin{alertblock}{Sécurité}
+        Le code d'autorisation est échangé contre le token d'accès côté serveur, jamais côté client.
+    \end{alertblock}
+\end{frame}
+
+\section{Keycloak: Serveur d'Autorisation}
+
+\begin{frame}
+    \frametitle{Présentation de Keycloak}
+    \begin{block}{Keycloak}
+        Keycloak est un \textbf{serveur d'authentification et d'autorisation} open-source qui implémente les standards OAuth 2.0, OpenID Connect et SAML.
+    \end{block}
+    
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \textbf{Fonctionnalités:}
+            \begin{itemize}
+                \item Authentification unique (SSO)
+                \item Gestion des utilisateurs
+                \item Gestion des rôles et permissions
+                \item Intégration LDAP/AD
+                \item Interface d'administration
+                \item API REST complète
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \textbf{Avantages:}
+            \begin{itemize}
+                \item Open source
+                \item Standards conformes
+                \item Haute disponibilité
+                \item Scalabilité
+                \item Documentation complète
+                \item Communauté active
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Architecture Keycloak}
+    \begin{center}
+        \begin{tikzpicture}[scale=0.7]
+            % Keycloak Server
+            \node[draw, rectangle, fill=keycloakblue!20, minimum width=3cm, minimum height=2cm] (keycloak) at (0,0) {Keycloak Server};
+            
+            % Components
+            \node[draw, rectangle, fill=oauthgreen!20, minimum width=2cm, minimum height=0.8cm] (auth) at (-2,1.5) {Auth Server};
+            \node[draw, rectangle, fill=oauthgreen!20, minimum width=2cm, minimum height=0.8cm] (token) at (2,1.5) {Token Manager};
+            \node[draw, rectangle, fill=oauthgreen!20, minimum width=2cm, minimum height=0.8cm] (user) at (-2,0) {User Management};
+            \node[draw, rectangle, fill=oauthgreen!20, minimum width=2cm, minimum height=0.8cm] (admin) at (2,0) {Admin Console};
+            \node[draw, rectangle, fill=oauthgreen!20, minimum width=2cm, minimum height=0.8cm] (realm) at (0,-1.5) {Realm Management};
+            
+            % Database
+            \node[draw, rectangle, fill=gray!20, minimum width=2cm, minimum height=1cm] (db) at (0,-3) {Base de données\\PostgreSQL};
+            
+            % Connections
+            \draw[<->] (keycloak) -- (auth);
+            \draw[<->] (keycloak) -- (token);
+            \draw[<->] (keycloak) -- (user);
+            \draw[<->] (keycloak) -- (admin);
+            \draw[<->] (keycloak) -- (realm);
+            \draw[<->] (keycloak) -- (db);
+        \end{tikzpicture}
+    \end{center}
+\end{frame}
+
+\section{Implémentation Pratique}
+
+\begin{frame}
+    \frametitle{Architecture du Projet}
+    \begin{center}
+        \begin{tikzpicture}[scale=0.6]
+            % User
+            \node[draw, circle, fill=blue!20] (user) at (0,4) {Utilisateur};
+            
+            % Web App
+            \node[draw, rectangle, fill=green!20, minimum width=2.5cm, minimum height=1.5cm] (webapp) at (0,2) {Application Web\\Node.js + Express};
+            
+            % Keycloak
+            \node[draw, rectangle, fill=keycloakblue!20, minimum width=2.5cm, minimum height=1.5cm] (keycloak) at (4,2) {Keycloak\\Serveur d'Autorisation};
+            
+            % Database
+            \node[draw, rectangle, fill=gray!20, minimum width=2.5cm, minimum height=1.5cm] (db) at (4,0) {PostgreSQL\\Base de données};
+            
+            % API
+            \node[draw, rectangle, fill=yellow!20, minimum width=2.5cm, minimum height=1.5cm] (api) at (0,0) {API Protégée\\Ressources};
+            
+            % Arrows
+            \draw[<->, thick] (user) -- (webapp);
+            \draw[<->, thick] (webapp) -- (keycloak);
+            \draw[<->, thick] (keycloak) -- (db);
+            \draw[<->, thick] (webapp) -- (api);
+        \end{tikzpicture}
+    \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Configuration Docker Compose}
+    \begin{lstlisting}[language=bash, caption=Configuration des services]
+version: '3.8'
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+    ports:
+      - "8080:8080"
+    command: start-dev
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak123
+
+  web-app:
+    build: ./web-app
+    ports:
+      - "3000:3000"
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: oauth-demo
+      KEYCLOAK_CLIENT_ID: web-app-client
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Configuration OAuth 2.0 dans l'Application}
+    \begin{lstlisting}[language=JavaScript, caption=Configuration Passport.js]
+const { Issuer, Strategy: OpenIDConnectStrategy } = require('openid-client');
+
+// Découverte du serveur Keycloak
+const keycloakIssuer = await Issuer.discover(
+  `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`
+);
+
+// Configuration du client
+const client = new keycloakIssuer.Client({
+  client_id: KEYCLOAK_CLIENT_ID,
+  client_secret: KEYCLOAK_CLIENT_SECRET,
+  redirect_uris: ['http://localhost:3000/auth/callback'],
+  response_types: ['code'],
+});
+
+// Configuration de la stratégie Passport
+passport.use('oidc', new OpenIDConnectStrategy({
+  client: client,
+  params: { scope: 'openid email profile' }
+}, (tokenset, userinfo, done) => {
+  return done(null, userinfo);
+}));
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Routes d'Authentification}
+    \begin{lstlisting}[language=JavaScript, caption=Routes Express.js]
+// Route de connexion
+app.get('/login', passport.authenticate('oidc'));
+
+// Callback OAuth 2.0
+app.get('/auth/callback', 
+  passport.authenticate('oidc', { failureRedirect: '/error' }),
+  (req, res) => {
+    res.redirect('/dashboard');
+  }
+);
+
+// Route protégée
+app.get('/api/protected', (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  res.json({
+    message: 'This is a protected resource',
+    user: req.user,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Déconnexion
+app.get('/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) console.error('Logout error:', err);
+    res.redirect('/');
+  });
+});
+    \end{lstlisting}
+\end{frame}
+
+\section{Sécurité et Bonnes Pratiques}
+
+\begin{frame}
+    \frametitle{Considérations de Sécurité}
+    \begin{block}{Sécurité OAuth 2.0}
+        \begin{itemize}
+            \item \textbf{HTTPS obligatoire} en production
+            \item \textbf{Validation des tokens} côté serveur
+            \item \textbf{Expiration des tokens} configurée
+            \item \textbf{Refresh tokens} pour la continuité
+            \item \textbf{Scopes limités} aux besoins réels
+        \end{itemize}
+    \end{block}
+    
+    \begin{alertblock}{Risques à éviter}
+        \begin{itemize}
+            \item Stockage des tokens côté client
+            \item Transmission en HTTP
+            \item Tokens avec durée de vie excessive
+            \item Scopes trop permissifs
+            \item Gestion d'erreurs révélatrice
+        \end{itemize}
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Configuration Sécurisée Keycloak}
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \textbf{Paramètres de sécurité:}
+            \begin{itemize}
+                \item Durée de vie des tokens
+                \item Politique de mots de passe
+                \item Authentification à deux facteurs
+                \item Audit des connexions
+                \item Rate limiting
+                \item CORS configuré
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \textbf{Monitoring:}
+            \begin{itemize}
+                \item Logs d'authentification
+                \item Métriques de performance
+                \item Alertes de sécurité
+                \item Tableau de bord admin
+                \item Rapports d'audit
+                \item Intégration SIEM
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\section{Démonstration}
+
+\begin{frame}
+    \frametitle{Fonctionnalités Implémentées}
+    \begin{block}{Application Web}
+        \begin{itemize}
+            \item \textbf{Page d'accueil} avec présentation du projet
+            \item \textbf{Authentification OAuth 2.0} via Keycloak
+            \item \textbf{Dashboard utilisateur} avec informations de session
+            \item \textbf{Profil utilisateur} avec détails du token JWT
+            \item \textbf{API protégée} démontrant l'utilisation des tokens
+            \item \textbf{Gestion des erreurs} et messages utilisateur
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Interface Utilisateur}
+        \begin{itemize}
+            \item Design responsive avec Bootstrap 5
+            \item Interface en français
+            \item Navigation intuitive
+            \item Feedback visuel des actions
+            \item Gestion des états d'authentification
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Flux d'Utilisation}
+    \begin{enumerate}
+        \item \textbf{Accès à l'application} sur \texttt{http://localhost:3000}
+        \item \textbf{Connexion} via le bouton "Se connecter avec OAuth 2.0"
+        \item \textbf{Redirection vers Keycloak} pour l'authentification
+        \item \textbf{Authentification} avec les identifiants de test
+        \item \textbf{Retour à l'application} avec session active
+        \item \textbf{Accès au dashboard} et aux ressources protégées
+        \item \textbf{Consultation du profil} avec détails du token JWT
+        \item \textbf{Test de l'API} protégée via interface web
+        \item \textbf{Déconnexion} et retour à l'état initial
+    \end{enumerate}
+\end{frame}
+
+\section{Conclusion}
+
+\begin{frame}
+    \frametitle{Points Clés du Projet}
+    \begin{block}{Objectifs Atteints}
+        \begin{itemize}
+            \item \textbf{Compréhension théorique} d'OAuth 2.0 et de ses flux
+            \item \textbf{Implémentation pratique} avec Keycloak
+            \item \textbf{Application web fonctionnelle} avec authentification
+            \item \textbf{Sécurité respectée} selon les bonnes pratiques
+            \item \textbf{Documentation complète} du projet
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Compétences Développées}
+        \begin{itemize}
+            \item Configuration et administration de Keycloak
+            \item Intégration OAuth 2.0 dans une application Node.js
+            \item Gestion des sessions et tokens JWT
+            \item Développement d'interfaces utilisateur sécurisées
+            \item Containerisation avec Docker
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Perspectives d'Évolution}
+    \begin{block}{Améliorations Possibles}
+        \begin{itemize}
+            \item \textbf{Multi-tenancy} avec plusieurs realms
+            \item \textbf{Intégration LDAP/AD} pour l'authentification
+            \item \textbf{Authentification à deux facteurs} (2FA)
+            \item \textbf{API Gateway} pour la gestion centralisée
+            \item \textbf{Monitoring et observabilité} avancés
+            \item \textbf{Tests automatisés} et CI/CD
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Cas d'Usage Réels}
+        \begin{itemize}
+            \item Applications d'entreprise avec SSO
+            \item APIs microservices sécurisées
+            \item Portails clients avec authentification fédérée
+            \item Applications mobiles avec OAuth 2.0
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Questions et Discussion}
+    \begin{center}
+        \Huge Merci pour votre attention!
+        
+        \vspace{1cm}
+        
+        \Large Questions et Discussion
+        
+        \vspace{1cm}
+        
+        \normalsize
+        \textbf{Projet disponible sur:} \url{https://github.com/votre-repo/oauth-keycloak-demo}
+        
+        \textbf{Documentation:} README.md avec instructions de déploiement
+    \end{center}
+\end{frame}
+
+\end{document}

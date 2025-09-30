@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil - OAuth 2.0 Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .profile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 0;
+        }
+        .profile-card {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .user-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 48px;
+            margin: 0 auto 20px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">OAuth 2.0 Demo</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/dashboard">Dashboard</a>
+                <a class="nav-link" href="/profile">Profil</a>
+                <a class="nav-link" href="/logout">Déconnexion</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="profile-header">
+        <div class="container text-center">
+            <h1 class="display-4">Profil Utilisateur</h1>
+            <p class="lead">Informations détaillées de votre compte</p>
+        </div>
+    </div>
+
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card profile-card">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <div class="user-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <h3><%= user.name || user.preferred_username || 'Utilisateur' %></h3>
+                            <p class="text-muted"><%= user.email || 'Email non disponible' %></p>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="mb-3">Informations Personnelles</h5>
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Nom d'utilisateur:</strong></td>
+                                        <td><%= user.preferred_username || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Prénom:</strong></td>
+                                        <td><%= user.given_name || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Nom de famille:</strong></td>
+                                        <td><%= user.family_name || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Email:</strong></td>
+                                        <td><%= user.email || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Email vérifié:</strong></td>
+                                        <td>
+                                            <% if (user.email_verified) { %>
+                                                <span class="badge bg-success">Vérifié</span>
+                                            <% } else { %>
+                                                <span class="badge bg-warning">Non vérifié</span>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="mb-3">Informations de Session</h5>
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Subject ID:</strong></td>
+                                        <td><code><%= user.sub || 'N/A' %></code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Issuer:</strong></td>
+                                        <td><code><%= user.iss || 'N/A' %></code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Audience:</strong></td>
+                                        <td><code><%= user.aud || 'N/A' %></code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Type de token:</strong></td>
+                                        <td><span class="badge bg-info">JWT</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Protocole:</strong></td>
+                                        <td><span class="badge bg-primary">OAuth 2.0</span></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <h5 class="mb-3">Données Complètes du Token</h5>
+                            <div class="bg-light p-3 rounded">
+                                <pre class="mb-0"><code><%= JSON.stringify(user, null, 2) %></code></pre>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <a href="/dashboard" class="btn btn-primary me-2">Retour au Dashboard</a>
+                            <a href="/logout" class="btn btn-outline-danger">Se déconnecter</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-white text-center py-4">
+        <div class="container">
+            <p>&copy; 2024 Projet Sécurité - OAuth 2.0 avec Keycloak</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
