@@ -37,10 +37,8 @@ services:
     container_name: web-app
     ports:
       - "3000:3000"
-    environment:
-      KEYCLOAK_URL: http://localhost:8081
-      KEYCLOAK_REALM: oauth-demo
-      KEYCLOAK_CLIENT_ID: web-app-client
+    env_file:
+      - ./web-app/.env
     depends_on:
       - keycloak
     networks:

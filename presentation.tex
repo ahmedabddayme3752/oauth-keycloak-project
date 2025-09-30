@@ -9,7 +9,6 @@
 \usepackage{xcolor}
 \usepackage{tikz}
 \usepackage{hyperref}
-\usepackage{fontawesome}
 \usepackage{animate}
 \usepackage{transparent}
 
@@ -35,13 +34,33 @@
 \setbeamercolor{alerted text}{fg=errorred}
 \setbeamercolor{example text}{fg=accentgreen}
 
+% Configuration du footer
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{headline}{}
+\setbeamertemplate{navigation symbols}{}
+
+% Personnalisation du footer
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{%
+  \begin{beamercolorbox}[wd=.25\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}%
+    \usebeamerfont{author in head/foot}\insertshortauthor~~(\insertshortinstitute)
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.5\paperwidth,ht=2.25ex,dp=1ex,center]{title in head/foot}%
+    \usebeamerfont{title in head/foot}\insertshorttitle
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.25\paperwidth,ht=2.25ex,dp=1ex,right]{date in head/foot}%
+    \usebeamerfont{date in head/foot}\insertshortdate{}\hfill\insertframenumber{} / \inserttotalframenumber\hspace*{2em} 
+  \end{beamercolorbox}}%
+  \vskip0pt%
+}
+
 % Police moderne
-\usepackage{roboto}
 \usepackage[T1]{fontenc}
 
 % Configuration des listes
 \lstset{
-    language=JavaScript,
+    language=bash,
     basicstyle=\tiny\ttfamily,
     keywordstyle=\color{blue},
     commentstyle=\color{gray},
@@ -65,16 +84,8 @@
 % Informations du document
 \title[OAuth 2.0 avec Keycloak]{\textbf{Projet 2: Implémentation OAuth 2.0 dans une Application Web}}
 \subtitle{\large Mise en place d'un serveur d'autorisation avec Keycloak}
-\author{
-    \textbf{Étudiants:}\\
-    \large Ahmed AbdDayme AHMEDBOUHA\\
-    \large Moussa Mahmoud BA
-}
-\institute{
-    \textbf{ENET'COM}\\
-    \large Enseignant: Mr ZARAI F.\\
-    \large Module: Sécurité des Systèmes d'Information
-}
+\author[Ahmed, Moussa]{Ahmed, Moussa}
+\institute[ ENET'COM]{ENET'COM}
 \date{\today}
 
 \begin{document}
@@ -82,36 +93,28 @@
 % Page de titre moderne
 \begin{frame}
     \begin{center}
-        \vspace{-1cm}
+        \vspace{-0.5cm}
         \begin{tikzpicture}
-            \node[fill=primaryblue, text=white, minimum width=\textwidth, minimum height=2cm, rounded corners=10pt] at (0,0) {
+            \node[fill=primaryblue, text=white, minimum width=\textwidth, minimum height=2.5cm, rounded corners=10pt] at (0,0) {
                 \Huge \textbf{OAuth 2.0 avec Keycloak}
             };
         \end{tikzpicture}
         
-        \vspace{0.5cm}
+        \vspace{0.8cm}
         \Large \textbf{Projet 2: Implémentation OAuth 2.0 dans une Application Web}
         
-        \vspace{0.3cm}
+        \vspace{0.5cm}
         \large Mise en place d'un serveur d'autorisation avec Keycloak
         
-        \vspace{1cm}
+        \vspace{1.2cm}
         \begin{tikzpicture}
-            \node[fill=secondaryblue, text=white, minimum width=8cm, minimum height=1.5cm, rounded corners=8pt] at (0,0) {
-                \large \textbf{Étudiants:}\\
-                Ahmed AbdDayme AHMEDBOUHA \quad Moussa Mahmoud BA
+            \node[fill=secondaryblue, text=white, minimum width=10cm, minimum height=1.8cm, rounded corners=8pt] at (0,0) {
+                \large \textbf{Étudiants:} Ahmed , Moussa\\
+                \textbf{ ENET'COM} \quad Enseignant: Mr ZARAI F.
             };
         \end{tikzpicture}
         
-        \vspace{0.5cm}
-        \begin{tikzpicture}
-            \node[fill=accentgreen, text=white, minimum width=8cm, minimum height=1.2cm, rounded corners=8pt] at (0,0) {
-                \large \textbf{ENET'COM}\\
-                Enseignant: Mr ZARAI F. \quad Module: Sécurité des Systèmes d'Information
-            };
-        \end{tikzpicture}
-        
-        \vspace{0.5cm}
+        \vspace{0.8cm}
         \large \today
     \end{center}
 \end{frame}
@@ -163,32 +166,44 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{\faUsers \quad Acteurs OAuth 2.0}
+    \frametitle{Acteurs OAuth 2.0}
     \begin{center}
-        \begin{tikzpicture}[scale=0.7]
+        \begin{tikzpicture}[scale=0.8]
             % Resource Owner
-            \node[draw, rectangle, fill=primaryblue!20, text=primaryblue, minimum width=2.5cm, minimum height=1.2cm, rounded corners=5pt] (ro) at (0,3) {\textbf{Resource Owner}\\\faUser Utilisateur};
+            \node[draw, rectangle, fill=primaryblue!20, text=primaryblue, minimum width=3cm, minimum height=1.5cm, rounded corners=8pt] (ro) at (-4,2) {
+                \textbf{Resource Owner}\\
+                Utilisateur
+            };
             
             % Client
-            \node[draw, rectangle, fill=accentgreen!20, text=accentgreen, minimum width=2.5cm, minimum height=1.2cm, rounded corners=5pt] (client) at (0,0) {\textbf{Client}\\\faGlobe Application Web};
+            \node[draw, rectangle, fill=accentgreen!20, text=accentgreen, minimum width=3cm, minimum height=1.5cm, rounded corners=8pt] (client) at (-4,-2) {
+                \textbf{Client}\\
+                Application Web
+            };
             
             % Authorization Server
-            \node[draw, rectangle, fill=errorred!20, text=errorred, minimum width=2.5cm, minimum height=1.2cm, rounded corners=5pt] (auth) at (5,3) {\textbf{Authorization Server}\\\faKey Keycloak};
+            \node[draw, rectangle, fill=errorred!20, text=errorred, minimum width=3cm, minimum height=1.5cm, rounded corners=8pt] (auth) at (4,2) {
+                \textbf{Authorization Server}\\
+                Keycloak
+            };
             
             % Resource Server
-            \node[draw, rectangle, fill=warningorange!20, text=warningorange, minimum width=2.5cm, minimum height=1.2cm, rounded corners=5pt] (resource) at (5,0) {\textbf{Resource Server}\\\faServer API Protégée};
+            \node[draw, rectangle, fill=warningorange!20, text=warningorange, minimum width=3cm, minimum height=1.5cm, rounded corners=8pt] (resource) at (4,-2) {
+                \textbf{Resource Server}\\
+                API Protégée
+            };
             
-            % Arrows with colors
-            \draw[->, thick, primaryblue] (ro) -- (auth) node[midway, above, primaryblue] {\textbf{1. Autorisation}};
-            \draw[->, thick, accentgreen] (client) -- (auth) node[midway, right, accentgreen] {\textbf{2. Demande token}};
-            \draw[->, thick, errorred] (auth) -- (client) node[midway, right, errorred] {\textbf{3. Token d'accès}};
-            \draw[->, thick, warningorange] (client) -- (resource) node[midway, below, warningorange] {\textbf{4. Accès ressource}};
+            % Arrows
+            \draw[->, thick, primaryblue] (ro) -- (auth) node[midway, above, primaryblue, font=\footnotesize] {1. Autorisation};
+            \draw[->, thick, accentgreen] (client) -- (auth) node[midway, right, accentgreen, font=\footnotesize] {2. Demande token};
+            \draw[->, thick, errorred] (auth) -- (client) node[midway, right, errorred, font=\footnotesize] {3. Token d'accès};
+            \draw[->, thick, warningorange] (client) -- (resource) node[midway, below, warningorange, font=\footnotesize] {4. Accès ressource};
         \end{tikzpicture}
     \end{center}
 \end{frame}
 
 \begin{frame}
-    \frametitle{\faExchangeAlt \quad Flux d'Autorisation OAuth 2.0}
+    \frametitle{Flux d'Autorisation OAuth 2.0}
     \begin{columns}
         \begin{column}{0.6\textwidth}
             \begin{enumerate}
@@ -202,18 +217,18 @@
         \begin{column}{0.4\textwidth}
             \begin{center}
                 \begin{tikzpicture}[scale=0.6]
-                    \node[fill=primaryblue!20, text=primaryblue, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,4) {\faArrowRight \quad 1. Redirection};
-                    \node[fill=accentgreen!20, text=accentgreen, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,3) {\faUser \quad 2. Auth};
-                    \node[fill=warningorange!20, text=warningorange, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,2) {\faCode \quad 3. Code};
-                    \node[fill=errorred!20, text=errorred, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,1) {\faExchangeAlt \quad 4. Token};
-                    \node[fill=primaryblue!20, text=primaryblue, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,0) {\faShieldAlt \quad 5. Accès};
+                    \node[fill=primaryblue!20, text=primaryblue, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,4) {1. Redirection};
+                    \node[fill=accentgreen!20, text=accentgreen, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,3) {2. Auth};
+                    \node[fill=warningorange!20, text=warningorange, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,2) {3. Code};
+                    \node[fill=errorred!20, text=errorred, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,1) {4. Token};
+                    \node[fill=primaryblue!20, text=primaryblue, minimum width=3cm, minimum height=0.8cm, rounded corners=5pt] at (0,0) {5. Accès};
                 \end{tikzpicture}
             \end{center}
         \end{column}
     \end{columns}
     
     \vspace{0.5cm}
-    \begin{alertblock}{\faLock \quad Sécurité}
+    \begin{alertblock}{Sécurité}
         Le code d'autorisation est échangé contre le token d'accès côté serveur, jamais côté client.
     \end{alertblock}
 \end{frame}
@@ -221,7 +236,7 @@
 \section{Keycloak: Serveur d'Autorisation}
 
 \begin{frame}
-    \frametitle{\faKey \quad Présentation de Keycloak}
+    \frametitle{Présentation de Keycloak}
     \begin{alertblock}{Keycloak}
         \Large Keycloak est un \textbf{serveur d'authentification et d'autorisation} open-source qui implémente les standards OAuth 2.0, OpenID Connect et SAML.
     \end{alertblock}
@@ -229,26 +244,26 @@
     \vspace{0.5cm}
     \begin{columns}
         \begin{column}{0.5\textwidth}
-            \begin{block}{\faCogs \quad Fonctionnalités}
+            \begin{block}{Fonctionnalités}
                 \begin{itemize}
-                    \item \textcolor{primaryblue}{\faSignInAlt \quad Authentification unique (SSO)}
-                    \item \textcolor{accentgreen}{\faUsers \quad Gestion des utilisateurs}
-                    \item \textcolor{warningorange}{\faUserShield \quad Gestion des rôles et permissions}
-                    \item \textcolor{errorred}{\faDatabase \quad Intégration LDAP/AD}
-                    \item \textcolor{primaryblue}{\faCog \quad Interface d'administration}
-                    \item \textcolor{accentgreen}{\faCode \quad API REST complète}
+                    \item \textcolor{primaryblue}{Authentification unique (SSO)}
+                    \item \textcolor{accentgreen}{Gestion des utilisateurs}
+                    \item \textcolor{warningorange}{Gestion des rôles et permissions}
+                    \item \textcolor{errorred}{Intégration LDAP/AD}
+                    \item \textcolor{primaryblue}{Interface d'administration}
+                    \item \textcolor{accentgreen}{API REST complète}
                 \end{itemize}
             \end{block}
         \end{column}
         \begin{column}{0.5\textwidth}
-            \begin{block}{\faStar \quad Avantages}
+            \begin{block}{Avantages}
                 \begin{itemize}
-                    \item \textcolor{accentgreen}{\faOpenSource \quad Open source}
-                    \item \textcolor{primaryblue}{\faCheckCircle \quad Standards conformes}
-                    \item \textcolor{warningorange}{\faServer \quad Haute disponibilité}
-                    \item \textcolor{errorred}{\faExpand \quad Scalabilité}
-                    \item \textcolor{primaryblue}{\faBook \quad Documentation complète}
-                    \item \textcolor{accentgreen}{\faUsers \quad Communauté active}
+                    \item \textcolor{accentgreen}{Open source}
+                    \item \textcolor{primaryblue}{Standards conformes}
+                    \item \textcolor{warningorange}{Haute disponibilité}
+                    \item \textcolor{errorred}{Scalabilité}
+                    \item \textcolor{primaryblue}{Documentation complète}
+                    \item \textcolor{accentgreen}{Communauté active}
                 \end{itemize}
             \end{block}
         \end{column}
@@ -256,29 +271,34 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{\faSitemap \quad Architecture Keycloak}
+    \frametitle{Architecture Keycloak}
     \begin{center}
         \begin{tikzpicture}[scale=0.6]
-            % Keycloak Server
-            \node[draw, rectangle, fill=primaryblue!20, text=primaryblue, minimum width=3.5cm, minimum height=2.5cm, rounded corners=8pt] (keycloak) at (0,0) {\textbf{Keycloak Server}\\\faServer};
+            % Keycloak Server - Central
+            \node[draw, rectangle, fill=primaryblue!20, text=primaryblue, minimum width=4cm, minimum height=2cm, rounded corners=8pt] (keycloak) at (0,0) {
+                \textbf{Keycloak Server}\\
+                Serveur d'Autorisation
+            };
             
-            % Components
-            \node[draw, rectangle, fill=accentgreen!20, text=accentgreen, minimum width=2.2cm, minimum height=0.8cm, rounded corners=5pt] (auth) at (-3,2) {\faShieldAlt \quad Auth Server};
-            \node[draw, rectangle, fill=warningorange!20, text=warningorange, minimum width=2.2cm, minimum height=0.8cm, rounded corners=5pt] (token) at (3,2) {\faKey \quad Token Manager};
-            \node[draw, rectangle, fill=errorred!20, text=errorred, minimum width=2.2cm, minimum height=0.8cm, rounded corners=5pt] (user) at (-3,0) {\faUsers \quad User Management};
-            \node[draw, rectangle, fill=primaryblue!20, text=primaryblue, minimum width=2.2cm, minimum height=0.8cm, rounded corners=5pt] (admin) at (3,0) {\faCog \quad Admin Console};
-            \node[draw, rectangle, fill=accentgreen!20, text=accentgreen, minimum width=2.2cm, minimum height=0.8cm, rounded corners=5pt] (realm) at (0,-2) {\faGlobe \quad Realm Management};
+            % Components - Well spaced around
+            \node[draw, rectangle, fill=accentgreen!20, text=accentgreen, minimum width=2.5cm, minimum height=1cm, rounded corners=5pt] (auth) at (-4,2) {Auth Server};
+            \node[draw, rectangle, fill=warningorange!20, text=warningorange, minimum width=2.5cm, minimum height=1cm, rounded corners=5pt] (token) at (4,2) {Token Manager};
+            \node[draw, rectangle, fill=errorred!20, text=errorred, minimum width=2.5cm, minimum height=1cm, rounded corners=5pt] (user) at (-4,-2) {User Management};
+            \node[draw, rectangle, fill=primaryblue!20, text=primaryblue, minimum width=2.5cm, minimum height=1cm, rounded corners=5pt] (admin) at (4,-2) {Admin Console};
             
-            % Database
-            \node[draw, rectangle, fill=darkgray!20, text=darkgray, minimum width=2.5cm, minimum height=1.2cm, rounded corners=5pt] (db) at (0,-4) {\faDatabase \quad Base de données\\PostgreSQL};
+            % Realm Management - Below
+            \node[draw, rectangle, fill=accentgreen!20, text=accentgreen, minimum width=3cm, minimum height=1cm, rounded corners=5pt] (realm) at (0,-3.5) {Realm Management};
             
-            % Connections
-            \draw[<->, thick, accentgreen] (keycloak) -- (auth);
-            \draw[<->, thick, warningorange] (keycloak) -- (token);
-            \draw[<->, thick, errorred] (keycloak) -- (user);
-            \draw[<->, thick, primaryblue] (keycloak) -- (admin);
+            % Database - Bottom
+            \node[draw, rectangle, fill=darkgray!20, text=darkgray, minimum width=3.5cm, minimum height=1cm, rounded corners=5pt] (db) at (0,-5.5) {Base de données PostgreSQL};
+            
+            % Arrows - Clear connections
+            \draw[->, thick, primaryblue] (auth) -- (keycloak);
+            \draw[->, thick, warningorange] (token) -- (keycloak);
+            \draw[->, thick, errorred] (user) -- (keycloak);
+            \draw[->, thick, primaryblue] (admin) -- (keycloak);
             \draw[<->, thick, accentgreen] (keycloak) -- (realm);
-            \draw[<->, thick, darkgray] (keycloak) -- (db);
+            \draw[<->, thick, darkgray] (realm) -- (db);
         \end{tikzpicture}
     \end{center}
 \end{frame}
@@ -286,35 +306,49 @@
 \section{Implémentation Pratique}
 
 \begin{frame}
-    \frametitle{\faProjectDiagram \quad Architecture du Projet}
+    \frametitle{Architecture du Projet}
     \begin{center}
-        \begin{tikzpicture}[scale=0.5]
-            % User
-            \node[draw, circle, fill=primaryblue!20, text=primaryblue, minimum width=2cm, minimum height=2cm] (user) at (0,5) {\faUser \quad Utilisateur};
+        \begin{tikzpicture}[scale=0.6]
+            % User - Top center
+            \node[draw, circle, fill=primaryblue!20, text=primaryblue, minimum width=2.5cm, minimum height=2.5cm] (user) at (0,5) {
+                Utilisateur
+            };
             
-            % Web App
-            \node[draw, rectangle, fill=accentgreen!20, text=accentgreen, minimum width=3cm, minimum height=1.8cm, rounded corners=8pt] (webapp) at (0,2.5) {\textbf{Application Web}\\\faGlobe Node.js + Express};
+            % Web App - Left middle
+            \node[draw, rectangle, fill=accentgreen!20, text=accentgreen, minimum width=3.5cm, minimum height=1.8cm, rounded corners=8pt] (webapp) at (-4,2) {
+                \textbf{Application Web}\\
+                Node.js + Express
+            };
             
-            % Keycloak
-            \node[draw, rectangle, fill=errorred!20, text=errorred, minimum width=3cm, minimum height=1.8cm, rounded corners=8pt] (keycloak) at (5,2.5) {\textbf{Keycloak}\\\faKey Serveur d'Autorisation};
+            % Keycloak - Right middle
+            \node[draw, rectangle, fill=errorred!20, text=errorred, minimum width=3.5cm, minimum height=1.8cm, rounded corners=8pt] (keycloak) at (4,2) {
+                \textbf{Keycloak}\\
+                Serveur d'Autorisation
+            };
             
-            % Database
-            \node[draw, rectangle, fill=darkgray!20, text=darkgray, minimum width=3cm, minimum height=1.8cm, rounded corners=8pt] (db) at (5,0) {\textbf{PostgreSQL}\\\faDatabase Base de données};
+            % API Protected Resources - Left bottom
+            \node[draw, rectangle, fill=warningorange!20, text=warningorange, minimum width=3.5cm, minimum height=1.8cm, rounded corners=8pt] (api) at (-4,-1) {
+                \textbf{API Protégée}\\
+                Ressources
+            };
             
-            % API
-            \node[draw, rectangle, fill=warningorange!20, text=warningorange, minimum width=3cm, minimum height=1.8cm, rounded corners=8pt] (api) at (0,0) {\textbf{API Protégée}\\\faServer Ressources};
+            % Database - Right bottom
+            \node[draw, rectangle, fill=darkgray!20, text=darkgray, minimum width=3.5cm, minimum height=1.8cm, rounded corners=8pt] (db) at (4,-1) {
+                \textbf{PostgreSQL}\\
+                Base de données
+            };
             
-            % Arrows with colors
-            \draw[<->, thick, primaryblue] (user) -- (webapp) node[midway, left, primaryblue] {\textbf{1. Login}};
-            \draw[<->, thick, accentgreen] (webapp) -- (keycloak) node[midway, above, accentgreen] {\textbf{2. Auth}};
-            \draw[<->, thick, errorred] (keycloak) -- (db) node[midway, right, errorred] {\textbf{3. Data}};
-            \draw[<->, thick, warningorange] (webapp) -- (api) node[midway, below, warningorange] {\textbf{4. API}};
+            % Arrows
+            \draw[->, thick, primaryblue] (user) -- node[left] {1. Login} (webapp);
+            \draw[->, thick, accentgreen] (webapp) -- node[above] {2. Auth} (keycloak);
+            \draw[->, thick, errorred] (keycloak) -- node[right] {3. Data} (db);
+            \draw[->, thick, warningorange] (webapp) -- node[left] {4. API} (api);
         \end{tikzpicture}
     \end{center}
 \end{frame}
 
 \begin{frame}[fragile]
-    \frametitle{\faDocker \quad Configuration Docker Compose}
+    \frametitle{Configuration Docker Compose}
     \begin{lstlisting}[language=bash, caption=Configuration des services]
 version: '3.8'
 
@@ -556,37 +590,25 @@ app.get('/logout', (req, res) => {
 \end{frame}
 
 \begin{frame}
-    \frametitle{\faQuestionCircle \quad Questions et Discussion}
     \begin{center}
-        \vspace{-0.5cm}
+        \vspace{1cm}
         \begin{tikzpicture}
-            \node[fill=primaryblue, text=white, minimum width=\textwidth, minimum height=2cm, rounded corners=10pt] at (0,2) {
+            \node[fill=primaryblue, text=white, minimum width=\textwidth, minimum height=3cm, rounded corners=10pt] at (0,0) {
                 \Huge \textbf{Merci pour votre attention!}
             };
         \end{tikzpicture}
         
-        \vspace{0.5cm}
-        \Large \textcolor{primaryblue}{\textbf{Questions et Discussion}}
-        
-        \vspace{1cm}
-        \begin{tikzpicture}
-            \node[fill=accentgreen!20, text=accentgreen, minimum width=10cm, minimum height=1.5cm, rounded corners=8pt] at (0,0) {
-                \large \textbf{Étudiants:} Ahmed AbdDayme AHMEDBOUHA \quad Moussa Mahmoud BA\\
-                \textbf{ENET'COM} \quad Enseignant: Mr ZARAI F.
-            };
-        \end{tikzpicture}
-        
-        \vspace{0.5cm}
+               \vspace{0.8cm}
         \begin{tikzpicture}
             \node[fill=warningorange!20, text=warningorange, minimum width=10cm, minimum height=1cm, rounded corners=8pt] at (0,-1) {
-                \normalsize \textbf{Projet disponible sur:} \url{https://github.com/ahmedabddayme3752/oauth-keycloak-project}
+                \normalsize \textbf{Projet disp sur:} \url{https://github.com/ahmedabddayme3752/oauth-keycloak-project}
             };
         \end{tikzpicture}
         
-        \vspace{0.3cm}
+        \vspace{0.5cm}
         \begin{tikzpicture}
             \node[fill=lightgray, text=darkgray, minimum width=10cm, minimum height=0.8cm, rounded corners=8pt] at (0,-2) {
-                \normalsize \textbf{Documentation:} README.md avec instructions de déploiement
+                \normalsize \textbf{Références:} OAuth 2.0 RFC 6749, Keycloak Documentation, OpenID Connect
             };
         \end{tikzpicture}
     \end{center}
