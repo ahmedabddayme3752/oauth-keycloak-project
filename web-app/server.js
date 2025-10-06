@@ -22,7 +22,12 @@ app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // Set to true in production with HTTPS
+  cookie: { 
+    secure: false, // Set to true in production with HTTPS
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    httpOnly: true // Prevent XSS attacks
+  },
+  name: 'oauth-session' // Custom session name
 }));
 
 app.use(passport.initialize());
@@ -99,7 +104,8 @@ function initializeAuth() {
 app.get('/', (req, res) => {
   res.render('index', { 
     user: req.user,
-    isAuthenticated: req.isAuthenticated()
+    isAuthenticated: req.isAuthenticated(),
+    logout: req.query.logout
   });
 });
 
@@ -129,11 +135,30 @@ app.get('/profile', (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
+  // Logout from Passport
   req.logout((err) => {
     if (err) {
       console.error('Logout error:', err);
     }
-    res.redirect('/');
+    
+    // Destroy the session completely
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Session destroy error:', err);
+      }
+      
+      // Clear the session cookie
+      res.clearCookie('oauth-session');
+      
+      console.log('✅ User logged out successfully from local session');
+      
+      // Redirect to Keycloak logout endpoint to clear Keycloak session
+      // Using post_logout_redirect_uri to return to home page after logout
+      const keycloakLogoutUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/logout?client_id=${KEYCLOAK_CLIENT_ID}&post_logout_redirect_uri=${encodeURIComponent('http://localhost:3000')}`;
+      
+      console.log('🔄 Redirecting to Keycloak logout to clear server session');
+      res.redirect(keycloakLogoutUrl);
+    });
   });
 });
 

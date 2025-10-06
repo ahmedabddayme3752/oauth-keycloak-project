@@ -35,6 +35,12 @@
 
     <div class="hero-section">
         <div class="container text-center hero-content">
+            <% if (typeof logout !== 'undefined' && logout === 'success') { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>Vous avez été déconnecté avec succès!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <% } %>
             <% if (isAuthenticated) { %>
                 <div class="welcome-message">
                     <i class="fas fa-check-circle me-2"></i>Bienvenue, <%= user.preferred_username || user.name || 'Utilisateur' %>!
