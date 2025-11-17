@@ -5,6 +5,7 @@ const OAuth2Strategy = require('passport-oauth2').Strategy;
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -53,11 +54,77 @@ app.use((req, res, next) => {
   next();
 });
 
-// Initialize OAuth 2.0 authentication
+// PKCE Helper Functions
+function generatePKCE() {
+  // Generate code_verifier: random URL-safe string (43-128 characters)
+  const codeVerifier = crypto.randomBytes(32).toString('base64url');
+  
+  // Generate code_challenge: SHA256 hash of code_verifier, base64url encoded
+  const codeChallenge = crypto
+    .createHash('sha256')
+    .update(codeVerifier)
+    .digest('base64url');
+  
+  return {
+    codeVerifier,
+    codeChallenge,
+    codeChallengeMethod: 'S256'
+  };
+}
+
+// Custom OAuth2 Strategy with PKCE support
+class OAuth2PKCEStrategy extends OAuth2Strategy {
+  constructor(options, verify) {
+    super(options, verify);
+    this._options = options;
+    this._req = null; // Store request for later use
+  }
+
+  authenticate(req, options) {
+    // Store request reference
+    this._req = req;
+    
+    // Generate PKCE parameters if not already in session
+    if (!req.session.pkce) {
+      const pkce = generatePKCE();
+      req.session.pkce = pkce;
+      console.log('🔐 PKCE generated:', {
+        codeChallenge: pkce.codeChallenge.substring(0, 20) + '...',
+        method: pkce.codeChallengeMethod
+      });
+    }
+
+    // Add PKCE parameters to authorization URL
+    const pkce = req.session.pkce;
+    const authURL = new URL(this._options.authorizationURL);
+    authURL.searchParams.set('code_challenge', pkce.codeChallenge);
+    authURL.searchParams.set('code_challenge_method', pkce.codeChallengeMethod);
+    
+    // Store modified authorization URL
+    this._options.authorizationURL = authURL.toString();
+    
+    // Call parent authenticate method
+    super.authenticate(req, options);
+  }
+
+  _getOAuthAccessToken(code, params, callback) {
+    // Add code_verifier to token request from session
+    if (this._req && this._req.session && this._req.session.pkce) {
+      const pkce = this._req.session.pkce;
+      params.code_verifier = pkce.codeVerifier;
+      console.log('🔑 Using PKCE code_verifier for token exchange');
+    }
+    
+    // Call parent method
+    super._getOAuthAccessToken(code, params, callback);
+  }
+}
+
+// Initialize OAuth 2.0 authentication with PKCE
 function initializeAuth() {
   try {
-    // Configure Passport OAuth2 strategy for Keycloak
-    passport.use('keycloak', new OAuth2Strategy({
+    // Configure Passport OAuth2 strategy for Keycloak with PKCE
+    passport.use('keycloak', new OAuth2PKCEStrategy({
       authorizationURL: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth`,
       tokenURL: `http://keycloak:8080/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`,
       clientID: KEYCLOAK_CLIENT_ID,
@@ -78,7 +145,8 @@ function initializeAuth() {
         }
         
         const userInfo = await userInfoResponse.json();
-        console.log('✅ User authenticated successfully:', userInfo);
+        console.log('✅ User authenticated successfully with PKCE:', userInfo);
+        
         return done(null, userInfo);
       } catch (error) {
         console.error('Error fetching user info:', error);
@@ -94,7 +162,7 @@ function initializeAuth() {
       done(null, user);
     });
 
-    console.log('OAuth 2.0 authentication configured successfully');
+    console.log('OAuth 2.0 authentication with PKCE configured successfully');
   } catch (error) {
     console.error('Error initializing authentication:', error);
   }
@@ -114,7 +182,13 @@ app.get('/login', passport.authenticate('keycloak'));
 app.get('/auth/callback', 
   passport.authenticate('keycloak', { failureRedirect: '/error' }),
   (req, res) => {
-    console.log('✅ Authentication successful, redirecting to dashboard');
+    // Clear PKCE from session after successful authentication
+    if (req.session.pkce) {
+      delete req.session.pkce;
+      console.log('🧹 PKCE cleared from session');
+    }
+    
+    console.log('✅ Authentication successful with PKCE, redirecting to dashboard');
     console.log('User:', req.user);
     res.redirect('/dashboard');
   }
